@@ -1,0 +1,29 @@
+name: Feature request
+description: Suggest a change that helps agents, developers or support teams.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What is a coding agent, a developer or a vendor's support team trying to do that mudroom-support does not let them do today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behaviour
+      description: What the API, llms.txt, connector or setup should do. Request and response shapes help.
+    validations:
+      required: true
+  - type: dropdown
+    id: connector
+    attributes:
+      label: Connector affected
+      options:
+        - slack
+        - resend
+        - none (core, API or llms.txt)
+        - a new connector
+    validations:
+      required: true

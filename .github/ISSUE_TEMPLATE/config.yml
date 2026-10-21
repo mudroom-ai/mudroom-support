@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/mudroom-ai/mudroom-support/security/advisories/new
+    about: Do not open a public issue for vulnerabilities. Use private reporting; see SECURITY.md.

@@ -1,0 +1,16 @@
+node_modules/
+dist/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+.env
+.env.*
+
+# Local tooling state
+.claude/
+.gstack/
+
+# Maintainer notes (not published)
+.notes/
+
+.context/

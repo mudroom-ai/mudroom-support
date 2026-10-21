@@ -1,0 +1,56 @@
+{
+  "name": "mudroom-support",
+  "version": "0.1.0",
+  "description": "Open-source support door for developer-facing SaaS: a developer's coding agent asks a question over HTTP, your team replies in Slack, the answer goes back to the agent.",
+  "keywords": [
+    "ai-agents",
+    "coding-agents",
+    "claude-code",
+    "codex",
+    "developer-support",
+    "slack",
+    "llms-txt",
+    "openapi",
+    "self-hosted"
+  ],
+  "homepage": "https://github.com/mudroom-ai/mudroom-support#readme",
+  "bugs": {
+    "url": "https://github.com/mudroom-ai/mudroom-support/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mudroom-ai/mudroom-support.git"
+  },
+  "license": "Apache-2.0",
+  "author": "Dennis Chia",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "dev": "tsx watch src/server.ts",
+    "start": "node --env-file-if-exists=.env dist/server.js",
+    "init": "node --env-file-if-exists=.env dist/cli/init.js"
+  },
+  "dependencies": {
+    "express": "^5.3.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.6.5",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3"
+  }
+}

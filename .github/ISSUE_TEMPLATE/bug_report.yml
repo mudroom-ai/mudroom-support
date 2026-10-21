@@ -1,0 +1,78 @@
+name: Bug report
+description: Something in mudroom-support does not work as documented.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Security issues do not go here; see [SECURITY.md](https://github.com/mudroom-ai/mudroom-support/blob/main/SECURITY.md). Remove tokens, keys, thread tokens, resume links and requester details (names, emails) from anything you paste.
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      description: The version from package.json, or the output of `git rev-parse --short HEAD`.
+      placeholder: "0.1.0 or 8d4e353"
+    validations:
+      required: true
+  - type: dropdown
+    id: connector
+    attributes:
+      label: Connector
+      options:
+        - slack
+        - resend
+        - none (core or API)
+    validations:
+      required: true
+  - type: dropdown
+    id: client
+    attributes:
+      label: Agent or client
+      description: Which agent was talking to the server, if any.
+      options:
+        - Claude Code
+        - Codex
+        - Cursor
+        - claude.ai
+        - ChatGPT
+        - curl or a script
+        - other
+    validations:
+      required: true
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: Deployment
+      options:
+        - npm start
+        - Docker
+        - Railway
+        - other
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: The requests or commands you ran, in order.
+      placeholder: |
+        1. npm start
+        2. curl -s localhost:3000/api/messages -H 'content-type: application/json' -d '{...}'
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected-actual
+    attributes:
+      label: Expected vs actual
+      description: What you expected to happen, and what happened instead (include the error body if there was one).
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Relevant server output (lines tagged `[support]`) and `GET /healthz`. Redact secrets.
+      render: shell
+    validations:
+      required: false
