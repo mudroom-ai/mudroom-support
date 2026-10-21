@@ -372,7 +372,7 @@ function messageSchemas(config: Config): Record<string, object> {
       type: "object",
       required: ["name", "email"],
       description: "The developer. Email is required: if the session stops listening before support answers, the reply is emailed there.",
-      properties: { name: { type: "string" }, email: { type: "string", format: "email" } },
+      properties: { name: { type: "string", maxLength: 200, description: "One line: no line breaks or control characters." }, email: { type: "string", format: "email" } },
     },
     Context: {
       type: "object",

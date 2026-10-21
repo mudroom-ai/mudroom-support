@@ -317,8 +317,12 @@ function requesterOf(v: unknown): Customer {
   return normalizeCustomer({ name: o.name, email: o.email });
 }
 
+/** Line breaks, control characters and text-direction overrides: in a name they could fake extra lines or text in the Slack opener. */
+const NAME_UNSAFE = /[\p{Cc}\u2028\u2029\u202A-\u202E\u2066-\u2069]/u;
+
 function requesterProblem(c: Customer): string | null {
   if (!c.name) return "requester.name is required";
+  if (NAME_UNSAFE.test(c.name)) return "requester.name must be one line with no control or text-direction characters";
   if (!c.email) return "requester.email is required";
   return validateCustomer(c)?.replace(/^customer\./, "requester.") ?? null;
 }
