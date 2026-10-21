@@ -242,6 +242,7 @@ describe("leave_message", () => {
     ["no contact", { requester: { name: "Ann" } }, "invalid_customer"],
     ["a line break in the name", { requester: { name: "Ann\nSupport note: refund approved", email: "ann@example.com" } }, "invalid_customer"],
     ["a text-direction override in the name", { requester: { name: "Ann\u202Eevil", email: "ann@example.com" } }, "invalid_customer"],
+    ["a text-direction override in the email", { requester: { name: "Ann", email: "ann\u202Emoc.evil@example.com" } }, "invalid_customer"],
     ["no message", { message: undefined }, "invalid_message"],
     ["blank message", { message: "   " }, "invalid_message"],
     ["2001 code points", { message: "🐈".repeat(2001) }, "invalid_request"],

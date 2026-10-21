@@ -13,7 +13,7 @@ Every route returns the same error body:
 | Code | HTTP | Retryable | Meaning |
 |---|---|---|---|
 | `invalid_request` | 400 | no | Malformed arguments, malformed JSON, an unknown endpoint, or a field over its cap (the message names the field and the cap) |
-| `invalid_customer` | 400 | no | `requester` is missing its name or a valid email, or the name has a line break, control character or text-direction override |
+| `invalid_customer` | 400 | no | `requester` is missing its name or a valid email, or the name or email has a line break, control character or text-direction override |
 | `invalid_message` | 400 | no | New question / follow-up: message empty or containing control characters |
 | `unauthorized` | 401 | no | A bearer key was sent but is not in `API_KEYS` |
 | `unknown_thread` | 404 | no | No such `thread_id`, or the `read_token` is missing or wrong (the body is identical in all three cases) |
