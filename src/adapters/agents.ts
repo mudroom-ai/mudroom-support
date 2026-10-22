@@ -55,6 +55,9 @@ const hostOf = (base: string) => {
 /** Single-quote a string for sh. */
 const shq = (s: string) => `'${s.replace(/'/g, `'\\''`)}'`;
 
+const readInstructionsCommand = (base: string) =>
+  `curl --fail --silent --show-error --max-time 20 ${shq(`${base}/llms.txt`)}`;
+
 /** Exit codes of the published wait loop, as the copy explains them. */
 export const LOOP_EXIT = { answered: 0, unexpected: 1, timed_out: 2, delivery_failed: 3 } as const;
 
@@ -115,7 +118,19 @@ When ${name}'s docs can't answer something, you can ask ${name}'s support team d
 
 `;
   if (!d.messages) return `${head}Messages are paused right now. Tell the developer to contact ${name} another way.\n`;
-  return `${head}${messagesSection(config, base, d.messages, d.email === true)}## Errors
+  return `${head}## If browser access fails
+
+Use your available HTTP tools to send the question and wait for replies. No email or Slack plugin is needed.
+
+If browser or web-fetch access fails (including \`ERR_BLOCKED_BY_CLIENT\`), a code or terminal tool with curl may still work because its network access can differ. Only when that fallback is needed, read these instructions from a terminal:
+
+\`\`\`bash
+${readInstructionsCommand(base)}
+\`\`\`
+
+If a terminal request fails because of a sandbox/network restriction or cannot resolve this host, use the tool's normal network approval flow when available, then retry if approved. Respect denied access. If approval is denied or unavailable, explain the access blocker to the developer; do not claim that support is down or that a question was sent.
+
+${messagesSection(config, base, d.messages, d.email === true)}## Errors
 
 Every error has the body \`{code, message, retryable, retry_after_s?}\`. \`invalid_request\` names the field to fix; a \`retryable\` error can be sent again after \`retry_after_s\`.
 `;
@@ -146,12 +161,20 @@ function messagesSection(config: Config, base: string, mode: ThreadMode, email: 
 }
 \`\`\`
 
-- \`requester\`: the developer's name and email. **Email is required.** ${emailLine}
+- \`requester\`: the developer's name and email. **Email is required.** Ask for missing details; never invent them or submit the example identity. ${emailLine}
 - \`message\`: the question, at most ${caps.message} characters.
 - \`context\` (optional): \`error\` at most ${caps.error}, \`tried\` at most ${caps.tried}, \`environment\` at most ${caps.environment} characters.
 - Over a cap is rejected with \`invalid_request\` naming the field and its cap: trim that field and send again.
 - **Strip secrets first** (API keys, tokens, passwords, connection strings). The server also masks key and token patterns before anything is stored, but don't rely on it.
 - Add an \`idempotency_key\` you choose if you might retry; a retry with the same key returns the same thread.
+
+Optional curl example: save the JSON above as \`request.json\`, replacing the example identity and question with the developer's actual details, then send it:
+
+\`\`\`bash
+curl --silent --show-error --include --max-time 30 \\
+  ${shq(`${base}/api/messages`)} \\
+  -H 'Content-Type: application/json' --data-binary @request.json
+\`\`\`
 
 Success is HTTP 201 with \`thread_id\`, \`read_token\` (keep both; the token is shown once; send it only as the header \`x-thread-token\`, never in a URL), \`status\`, \`poll_after_seconds\` and \`delivery\`. \`delivery\` has exactly two values:
 
@@ -230,6 +253,9 @@ export function homePage(config: Config, base: string): string {
 </head><body>
 <h1>${name} support for coding agents</h1>
 <p>This page is for AI coding agents; there is nothing to fill in here. <strong>Agents: read <a href="${base}/llms.txt">${base}/llms.txt</a></strong> (OpenAPI spec: <a href="${base}/openapi.json">${base}/openapi.json</a>).</p>
+<p>If browser or web-fetch access to the instructions fails, a code or terminal tool can try:</p>
+<pre><code>${esc(readInstructionsCommand(base))}</code></pre>
+<p>Browser or web-fetch errors alone do not mean support is down. Terminal HTTP access may work separately. If the execution environment restricts network access, use its normal approval flow when available and retry only if approved. If access is denied or unavailable, report that blocker.</p>
 <p>Developers: ask your coding agent to contact ${name} support for you.</p>
 </body></html>
 `;
@@ -265,6 +291,7 @@ export function openApi(config: Config, base: string, d: Discovery): object {
       version: "1",
       description:
         `Ask ${name} support a question the docs can't answer (a bug on ${name}'s side, limits, account problems, pricing); a person replies. ` +
+        `If browser or web-fetch access fails, try a code or terminal HTTP client such as curl. Its network access can differ; use the environment's normal network approval flow when available and respect denied access. ` +
         `Flow: POST /api/messages -> run the background wait loop from ${base}/llms.txt (GET /api/threads/{thread_id}?wait=110) -> follow up or close. ` +
         `Every owner message is ${replyFraming(name)}` +
         (d.email === true ? "" : " No reply email is configured: replies reach only an open session."),

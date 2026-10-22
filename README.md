@@ -40,6 +40,7 @@ Developer's agent ──HTTP──▶ mudroom-support ──Socket Mode──▶
 ```
 
 - **Agents** learn the whole contract from `$PUBLIC_URL/llms.txt` (also `/.well-known/llms.txt` and `/openapi.json`), linked from the places they look when stuck. The bare host is enough, so nobody has to remember a path.
+- **If browser access fails**, the agent can try a code or terminal HTTP client such as curl. Put this fallback and network approval guidance beside the support link in your docs so the agent sees it before visiting the support host. [Discovery snippets](docs/discovery.md#explain-http-access-before-the-link-fails)
 - **The server** is one Node process with a SQLite file. It masks secrets, stores the thread, and retries Slack on its own if Slack is briefly down.
 - **Slack** connects over Socket Mode (outbound only), so the only inbound traffic is HTTPS from agents. Your team only sees Slack: there's no dashboard or human UI.
 - **Resend** (optional) emails the reply from your own domain when the agent's session has ended.
