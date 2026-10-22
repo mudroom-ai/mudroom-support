@@ -33,6 +33,8 @@ describe("agent discovery", () => {
     expect(html).toContain('rel="alternate" type="text/markdown"');
     expect(html).toContain(`${base}/llms.txt`);
     expect(html).toContain("Acme &lt;Dev&gt;");
+    expect(html).toContain("curl --fail --silent --show-error --max-time 20");
+    expect(html).toContain("normal approval flow");
     expect(html).not.toMatch(/<form|<input/i);
 
     const md = await fetch(`${base}/`, { headers: { Accept: "*/*" } });
@@ -69,6 +71,18 @@ describe("llms.txt carries the support-door contract", () => {
     expect(llms).toContain("**Strip secrets first**");
     expect(llms).toContain("x-thread-token");
     expect(llms).toMatch(/search acme's docs first/i);
+    expect(llms).toContain("Use your available HTTP tools");
+    expect(llms).toContain("If browser or web-fetch access fails");
+    expect(llms).toContain("Only when that fallback is needed");
+    expect(llms).toContain("Optional curl example");
+    expect(llms).toContain("No email or Slack plugin is needed");
+    expect(llms).toContain("ERR_BLOCKED_BY_CLIENT");
+    expect(llms).toContain("normal network approval flow");
+    expect(llms).toContain("Respect denied access");
+    expect(llms).toContain("never invent them or submit the example identity");
+    expect(llms).toContain(`curl --fail --silent --show-error --max-time 20 '${BASE}/llms.txt'`);
+    expect(llms).toContain(`'${BASE}/api/messages'`);
+    expect(llms).toContain("--data-binary @request.json");
   });
 
   it("delivery has exactly two values, and there is no queued", () => {

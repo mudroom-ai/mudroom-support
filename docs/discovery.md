@@ -14,6 +14,16 @@ So state where support is and what it can do, and leave the decision to the deve
 
 Nobody needs to remember `/llms.txt`. `GET /` on the door returns the same agent instructions to any client that doesn't ask for HTML (curl, agent fetch tools), and a browser gets a short page that links to them. A developer can say *"ask Acme support at support.acme.dev"* and the agent has everything it needs. `/llms.txt` and `/.well-known/llms.txt` serve the same text.
 
+## Explain HTTP access before the link fails
+
+An agent may find the support link in your docs, try its browser or web-fetch tool, and stop when that tool blocks the support host. Recovery guidance inside the support host's `llms.txt` cannot help an agent that has not read it. Put the HTTP client and network-access guidance beside the link on your own docs site and in its `llms.txt`, as in the snippets below.
+
+Keep the normal HTTP flow for agents that already reach the door. The curl guidance is a fallback only when browser or web-fetch access fails; it does not require identifying the agent by name.
+
+Browser access and terminal network access can differ. A browser error such as `ERR_BLOCKED_BY_CLIENT`, or a DNS failure inside a restricted terminal, does not by itself prove the support service is down. If browser or web-fetch access fails, a code or terminal tool can try curl. The agent can use its tool's normal network approval flow where available and retry if approved. Denied access must be respected; unavailable or denied approval is an access blocker to report to the developer.
+
+This requires no email or Slack plugin on the developer's side. The agent still needs the developer's permission to contact support and their actual name and email. It must ask for missing details rather than submit an example identity.
+
 ## Where to put the link
 
 Ranked by how close each surface is to the moment an agent needs help. Do as many as you can, starting at the top.
@@ -54,14 +64,18 @@ In the README you publish to npm/PyPI, under *Support* or *Help*:
 
 ```markdown
 **Support:** if these docs don't answer it, Acme's support team can. Coding agents can send them a question on your behalf at https://support.acme.dev/llms.txt?via=sdk, and a person replies.
+
+If browser or web-fetch access fails, a code or terminal tool can try `curl --fail --silent --show-error --max-time 20 'https://support.acme.dev/llms.txt?via=sdk'`. Its network access can differ. If the execution environment restricts the request, its normal network approval flow may allow it; retry only if approved and respect denied access. No email or Slack plugin is needed.
 ```
 
 ### 3. Your docs site
 
-Add one line to your docs site's `llms.txt` (many docs platforms generate this file; add the line to its header or an "Optional" section):
+Add a support entry to your docs site's `llms.txt` (many docs platforms generate this file; add it to the header or an "Optional" section). Keep the HTTP access guidance next to the link:
 
 ```markdown
 - [Acme support](https://support.acme.dev/llms.txt?via=docs): a person on Acme's support team answers what these docs don't cover; coding agents can ask on the developer's behalf
+
+If browser or web-fetch access fails, a code or terminal tool can try `curl --fail --silent --show-error --max-time 20 'https://support.acme.dev/llms.txt?via=docs'`. Its network access can differ. If the execution environment restricts the request, its normal network approval flow may allow it; retry only if approved and respect denied access. No email or Slack plugin is needed.
 ```
 
 And one line on your human support or contact page, which agents also fetch:
@@ -69,6 +83,8 @@ And one line on your human support or contact page, which agents also fetch:
 ```
 Using a coding agent? It can ask our support team for you at https://support.acme.dev/?via=support-page
 ```
+
+Include the same HTTP access paragraph on that page so an agent reading it has the recovery guidance before visiting the support host.
 
 ### 4. What developers can say
 
@@ -100,6 +116,13 @@ These numbers are a minimum: some agents drop the query string or type the bare 
 
 ## Limits
 
-- Chat apps without a code tool (ChatGPT in plain chat) can read the instructions but can't POST a question. claude.ai and ChatGPT with a code or terminal tool can.
+- The agent needs a code or terminal tool that can make HTTP requests to your support host. Reading a page in a browser or web-search tool alone does not establish that it can POST a question. Tool availability and network permissions vary by session.
+- Mudroom cannot grant network access or override an agent's denied permissions. The discovery copy explains the available route; a network approval prompt may still be necessary.
 - A link on a host that isn't yours can't be checked by domain. See *Place it safely*.
 - Agents decide for themselves when to follow a link, and most will check with the developer first. That's intended: the developer agrees before their email and error details go to you. The instructions also tell agents to search your docs first and ask only what the docs don't answer.
+
+## Verify a fresh session
+
+After publishing the snippets and deploying the door, start fresh ChatGPT Work and Claude sessions and ask each to contact support without naming curl or supplying recovery instructions. Check that each discovers the door, uses its available HTTP tools, falls back to curl only if browser/web-fetch access fails, requests network access if its environment requires it, asks for missing requester details, and sends exactly one question. Verify the Slack thread and the reply arriving back in the agent. If access is denied, the agent should report the access blocker without claiming the service is down or the question was sent.
+
+Automated tests check the published contract and HTTP behavior; this fresh-session check is needed to establish whether a particular agent follows the discovery copy.
