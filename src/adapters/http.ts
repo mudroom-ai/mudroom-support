@@ -11,10 +11,15 @@
 //   The read token is accepted in the header only: the access log prints the URL, so a
 //   token in a query string would land in the logs.
 
+import { createHash } from "node:crypto";
 import { Router, type NextFunction, type Request, type RequestHandler, type Response } from "express";
+import type { Config } from "../config.js";
 import { err, HTTP_STATUS, type GatewayError, type Result } from "../errors.js";
 import type { SupportEmails } from "../emails.js";
 import { ownerMessageIds, type LeaveMessageRequest, type MessageOps } from "../messages.js";
+import { createResumeTokens, resumePage } from "../resume.js";
+import type { Store } from "../store/sqlite.js";
+import { baseUrl } from "./agents.js";
 
 /** Core ops bound to their dependencies (see buildOps in server.ts). */
 export interface Ops {
@@ -79,7 +84,13 @@ export function markReadOnFinish(messages: Pick<MessageOps, "markDelivered">): R
 export interface ApiOptions {
   /** T5c: the caller's rate-limit bucket for POST /api/messages (ip:<bucket> or k:<key id>). */
   caller?: (req: Request, res: Response) => string | undefined;
+  /** Needed for GET /api/ask to mint a resume token and render the plain-text thread page. */
+  config?: Config;
+  store?: Store;
+  email?: boolean;
 }
+
+const PREVIEW_BOT_UA = /Slackbot-LinkExpanding|Twitterbot|facebookexternalhit|Discordbot|WhatsApp|LinkedInBot|TelegramBot/i;
 
 export function apiRouter(ops: Ops, opts: ApiOptions = {}): Router {
   const r = Router();
@@ -91,6 +102,72 @@ export function apiRouter(ops: Ops, opts: ApiOptions = {}): Router {
     r.post("/messages", async (req, res) =>
       sendResult(res, await runOp("leave_message", () => messages.leaveMessage({ ...(body(req) as LeaveMessageRequest), caller: opts.caller?.(req, res) })), 201),
     );
+    r.get("/ask", async (req, res) => {
+      if (PREVIEW_BOT_UA.test(req.get("user-agent") ?? "")) {
+        return sendError(res, err("invalid_request", "Link preview bots cannot submit questions").error);
+      }
+      const q = req.query;
+      const name = typeof q.name === "string" ? q.name : undefined;
+      const email = typeof q.email === "string" ? q.email : undefined;
+      const message = typeof q.message === "string" ? q.message : undefined;
+      const error = typeof q.error === "string" ? q.error : undefined;
+      const tried = typeof q.tried === "string" ? q.tried : undefined;
+      const environment = typeof q.environment === "string" ? q.environment : undefined;
+      const idempotency_key =
+        typeof q.idempotency_key === "string"
+          ? q.idempotency_key
+          : name !== undefined && email !== undefined && message !== undefined
+            ? "web_" +
+              createHash("sha256")
+                .update(`${email.trim().toLowerCase()}\0${message.trim()}\0${Math.floor(Date.now() / 60000)}`)
+                .digest("base64url")
+                .slice(0, 24)
+            : undefined;
+      const w = q.wait;
+      if (w !== undefined && (typeof w !== "string" || !/^\d{1,4}$/.test(w) || Number(w) > 3600)) {
+        return sendError(res, err("invalid_request", "wait must be a whole number of seconds from 0 to 3600").error);
+      }
+      const waitS = w === undefined ? 5 : Number(w);
+      const context = error || tried || environment ? { ...(error ? { error } : {}), ...(tried ? { tried } : {}), ...(environment ? { environment } : {}) } : undefined;
+      const created = await runOp("leave_message", () =>
+        messages.leaveMessage({
+          requester: { name: name as string, email: email as string },
+          message: message as string,
+          ...(context ? { context } : {}),
+          ...(idempotency_key ? { idempotency_key } : {}),
+          caller: opts.caller?.(req, res),
+        }),
+      );
+      if (!created.ok) return sendError(res, created.error);
+
+      if (waitS > 0 && messages.mode === "two_way") {
+        const gone = new AbortController();
+        res.on("close", () => {
+          if (!res.writableEnded) gone.abort();
+        });
+        const held = await runOp("get_thread", () =>
+          messages.getThread({ thread_id: created.data.thread_id, read_token: created.data.read_token, wait_s: waitS, signal: gone.signal }),
+        );
+        if (gone.signal.aborted) return;
+        if (held.ok) {
+          const carried = ownerMessageIds(held.data);
+          if (carried && carried.ids.length) {
+            res.once("finish", () => {
+              if (res.statusCode === 201) messages.markDelivered(carried.thread_id, carried.ids);
+            });
+          }
+        }
+      }
+
+      if (opts.config && opts.store) {
+        const resumeTok = createResumeTokens(opts.store).mintResumeToken(created.data.thread_id);
+        const base = baseUrl(req, opts.config.public_url);
+        const p = resumePage({ config: opts.config, store: opts.store, base, threadId: created.data.thread_id, token: resumeTok, email: opts.email === true, pollCount: 0 });
+        res.set("Cache-Control", "no-store").set("X-Robots-Tag", "noindex").type("text/markdown; charset=utf-8").status(201).send(p.text);
+        return;
+      }
+      sendResult(res, created, 201);
+    });
     r.get("/threads/:id", markReadOnFinish(messages), async (req, res) => {
       // wait: one whole number of seconds, 0 to 3600 (clamped to the configured max in messages.ts).
       const w = req.query.wait;

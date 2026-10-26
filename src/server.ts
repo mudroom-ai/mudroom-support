@@ -185,9 +185,9 @@ export function createApp(config: Config, settings: RuntimeSettings, deps: { sto
   app.get("/openapi.json", discoveryLimit, openApiHandler(config, discovery));
   app.get("/robots.txt", discoveryLimit, robotsHandler(config.public_url));
   // T6: emailed resume links; read-only plain text, same per-IP limiter as llms.txt (R3).
-  app.get("/t/:threadId/:token", discoveryLimit, resumePageHandler(config, store, !emailWarning(settings)));
+  app.get("/t/:threadId/:token", discoveryLimit, resumePageHandler(config, store, !emailWarning(settings), messages));
 
-  app.use("/api", ...guard, apiRouter(ops, { caller: (req, res) => callerKey(req, res, ipOpts) }));
+  app.use("/api", ...guard, apiRouter(ops, { caller: (req, res) => callerKey(req, res, ipOpts), config, store, email: !emailWarning(settings) }));
   // T5b: the confirm link of each question's confirm email; GET shows one button, only the POST confirms (R5).
   if (ops.emails) {
     const clock = () => (deps.now ? deps.now().getTime() : Date.now());

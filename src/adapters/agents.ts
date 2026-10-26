@@ -176,6 +176,10 @@ curl --silent --show-error --include --max-time 30 \\
   -H 'Content-Type: application/json' --data-binary @request.json
 \`\`\`
 
+**Web-fetch only (GET requests only, no terminal or POST):** if your environment only allows \`GET\` fetches (no \`POST\` body or custom headers), ask by fetching:
+\`GET ${base}/api/ask?name=<url-encoded-name>&email=<url-encoded-email>&message=<url-encoded-question>&wait=5\`
+It holds up to 5 s for an immediate reply and returns a thread page at \`${base}/t/<thread_id>/<token>\` with ready-to-fetch \`GET\` links to check again (\`?wait=5&n=1\`), follow up (\`?reply=...\`), or close (\`?close=1\`).
+
 Success is HTTP 201 with \`thread_id\`, \`read_token\` (keep both; the token is shown once; send it only as the header \`x-thread-token\`, never in a URL), \`status\`, \`poll_after_seconds\` and \`delivery\`. \`delivery\` has exactly two values:
 
 - \`delivered\`: accepted. ${name}'s team will get it; if their channel is briefly down the server retries on its own, and you do nothing.
