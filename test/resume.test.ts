@@ -179,3 +179,66 @@ describe("access log", () => {
     expect(logged).not.toMatch(/SECRETtok/);
   });
 });
+
+describe("web-fetch GET-only flow (GET /api/ask and GET /t/:id/:token actions)", () => {
+  it("completes ask -> wait poll -> follow-up -> close using only GET requests", async () => {
+    const asked = await page("/api/ask?name=Sam+Doe&email=sam@example.com&message=Do+you+ship+cold-chain%3F&wait=0");
+    expect(asked.status).toBe(201);
+    expect(asked.text).toContain("Do you ship cold-chain?");
+    const match = asked.text.match(/\/t\/(t_[a-f0-9]+)\/([A-Za-z0-9_-]+)\?wait=5&n=1/);
+    expect(match).not.toBeNull();
+    const [, threadId, token] = match!;
+
+    // Hold with ?wait=1&n=1 while owner replies in Slack; increments next link to n=2 and marks delivered.
+    const heldPoll = page(`/t/${threadId}/${token}?wait=1&n=1`);
+    await new Promise((r) => setTimeout(r, 30));
+    expect(
+      await ops.onOwnerMessage({
+        provider_ref: `ts.${opened.indexOf(threadId!) + 1}`,
+        provider_msg_id: `web_${threadId}`,
+        user_id: "U1",
+        text: "Yes, we ship to Austin.",
+      }),
+    ).toBe("accepted");
+    const polled = await heldPoll;
+    expect(polled.status).toBe(200);
+    expect(polled.text).toContain("status: answered.");
+    expect(polled.text).toContain("Yes, we ship to Austin.");
+    expect(polled.text).toContain(`?wait=5&n=2`);
+    expect(deliveredAt(threadId!)[0]).not.toBeNull();
+
+    // Follow-up via GET ?reply=...
+    const followed = await page(`/t/${threadId}/${token}?reply=Great%2C+10+pallets+please&wait=0`);
+    expect(followed.status).toBe(200);
+    expect(followed.text).toContain("status: awaiting_owner.");
+    expect(followed.text).toContain("Great, 10 pallets please");
+
+    // Close via GET ?close=1
+    const closed = await page(`/t/${threadId}/${token}?close=1`);
+    expect(closed.status).toBe(200);
+    expect(closed.text).toContain("status: closed.");
+    expect(closed.text).toContain("This conversation is closed");
+  });
+
+  it("deduplicates repeated GET /api/ask calls with the same (name, email, message) and no idempotency_key", async () => {
+    const beforeCount = opened.length;
+    const first = await page("/api/ask?name=Sam+Doe&email=sam@example.com&message=Same+question+retry%3F&wait=0");
+    const second = await page("/api/ask?name=Sam+Doe&email=sam@example.com&message=Same+question+retry%3F&wait=0");
+    expect(first.status).toBe(201);
+    expect(second.status).toBe(201);
+    const m1 = first.text.match(/\/t\/(t_[a-f0-9]+)\/([A-Za-z0-9_-]+)\?wait=5&n=1/);
+    const m2 = second.text.match(/\/t\/(t_[a-f0-9]+)\/([A-Za-z0-9_-]+)\?wait=5&n=1/);
+    expect(m1).not.toBeNull();
+    expect(m2).not.toBeNull();
+    expect(m1![1]).toBe(m2![1]);
+    expect(opened.length).toBe(beforeCount + 1);
+  });
+
+  it("blocks link-preview bots on GET /api/ask", async () => {
+    const res = await fetch(`${base}/api/ask?name=Sam&email=sam@example.com&message=Hi&wait=0`, {
+      headers: { "user-agent": "Slackbot-LinkExpanding 1.0 (+https://api.slack.com/robots)" },
+    });
+    expect(res.status).toBe(400);
+  });
+});
+
