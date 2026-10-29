@@ -12,5 +12,6 @@ dist/
 
 # Maintainer notes (not published)
 .notes/
+docs/designs/
 
 .context/
